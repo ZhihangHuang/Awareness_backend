@@ -87,21 +87,17 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'awareness_backend.wsgi.application'
-
+import dj_database_url
+import os
 import pymysql
 pymysql.install_as_MySQLdb()
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'awareness_life_logging',
-        'USER': 'root',
-        'PASSWORD': 'Huang1208!',
-        'HOST': 'localhost',
-        'PORT': '3306',
-    }
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL')
+    )
 }
 
 
