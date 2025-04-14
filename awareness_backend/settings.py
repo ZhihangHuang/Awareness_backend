@@ -95,10 +95,26 @@ pymysql.install_as_MySQLdb()
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'railway',
+        'USER': 'postgres',
+        'PASSWORD': 'lCScxLIvjjoxjAJOLYrWsLzTHrBgDfaP',
+        'HOST': 'yamanote.proxy.rlwy.net',
+        'PORT': '39865',
+    }
 }
-
-
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',  # ✅ 必须的
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',  # ✅ 必须的
+    'django.contrib.messages.middleware.MessageMiddleware',  # ✅ 必须的
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
