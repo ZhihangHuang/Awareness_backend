@@ -1,0 +1,1 @@
+print("✅ core app 已加载")
