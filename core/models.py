@@ -105,7 +105,7 @@ class SensorData(models.Model):
     recorded_at = models.DateTimeField(blank=True, null=True)
     synced_at = models.DateTimeField(blank=True, null=True)
     time_index = models.FloatField(null=True, blank=True)  # 现有，记录数据点的时间索引
-    
+    session_id = models.CharField(max_length=100, blank=True, null=True)
     # 新增字段：设备外键
     device = models.ForeignKey(Devices, models.SET_NULL, blank=True, null=True, related_name="sensor_data")
     # 新增字段：原始数据JSON

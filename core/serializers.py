@@ -71,13 +71,14 @@ class SensorDataSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'activity', 'data_type', 'value', 'unit', 
             'recorded_at', 'synced_at', 'time_index', 'device', 
-            'raw_data', 'quality'
+            'raw_data', 'quality','raw_data', 'quality', 'session_id'
         ]
         extra_kwargs = {
             'activity': {'required': False, 'allow_null': True},
             'recorded_at': {'required': False, 'allow_null': True},
             'synced_at': {'required': False, 'allow_null': True},
             'device': {'required': False, 'allow_null': True},
+            'session_id': {'required': False, 'allow_null': True},
         }
 
 class AnnotationSerializer(serializers.ModelSerializer):
