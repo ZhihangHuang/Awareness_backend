@@ -44,6 +44,10 @@ import json
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from core.models import SensorData
+from core.serializers import SensorDataSerializer
 
 @csrf_exempt
 @api_view(['POST'])
@@ -620,3 +624,13 @@ def save_config(request):
 
 def get_config(request):
     return JsonResponse(CURRENT_CONFIG, status=200)
+
+
+@api_view(['GET'])
+def get_data_by_session(request):
+    session_id = request.GET.get('session')
+    if not session_id:
+        return Response({"error": "Missing session parameter"}, status=400)
+    data = SensorData.objects.filter(session_id=session_id).order_by('recorded_at')
+    serializer = SensorDataSerializer(data, many=True)
+    return Response(serializer.data)

@@ -42,4 +42,5 @@ urlpatterns = [
     path('test/', views.test_endpoint, name='test_endpoint'),
     path("save-config/", views.save_config),
     path("get-config/", views.get_config),
+    path('sensor_data/by_session/', views.get_data_by_session),
 ]
