@@ -611,7 +611,7 @@ def user_data_status(request):
 CURRENT_CONFIG = {}
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def save_config(request):
     """
     保存当前登录账号的配置（email, password, user_id, activity_id, data_type）
