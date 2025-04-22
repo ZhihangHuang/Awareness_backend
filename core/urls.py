@@ -43,4 +43,5 @@ urlpatterns = [
     path("save-config/", views.save_config),
     path("get-config/", views.get_config),
     path('sensor_data/by_session/', views.get_data_by_session),
+    path('public-config/', views.get_public_config),
 ]

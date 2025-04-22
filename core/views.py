@@ -657,3 +657,10 @@ def get_data_by_session(request):
     data = SensorData.objects.filter(session_id=session_id).order_by('recorded_at')
     serializer = SensorDataSerializer(data, many=True)
     return Response(serializer.data)
+
+@api_view(['GET'])
+def get_public_config(request):
+    return JsonResponse({
+        "email": "your_email@example.com",
+        "password": "your_password_here"
+    })
