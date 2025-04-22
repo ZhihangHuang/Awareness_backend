@@ -7,7 +7,7 @@ urlpatterns = [
     path('register/', views.register_account),
     path('register_user/', views.register_user),
     path('users/', views.get_users),
-
+    path('login_account/', views.login_account),
     path('sensor_data/', views.upload_sensor_data, name='upload_sensor_data'),  
     path('get_sensor_data/', views.get_sensor_data),                            
 
