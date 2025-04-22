@@ -48,7 +48,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from core.models import SensorData
 from core.serializers import SensorDataSerializer
-
+from rest_framework.permissions import AllowAny
 @csrf_exempt
 @api_view(['POST'])
 def register_account(request):
@@ -636,18 +636,18 @@ def save_config(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])  # ✅ 测试阶段不需要认证
 def get_config(request):
     """
-    获取当前登录账号的配置
+    测试版本：从 CURRENT_CONFIG 中取第一个配置（不依赖登录账号）
     """
-    account = request.user
-    config = CURRENT_CONFIG.get(account.id)
+    if not CURRENT_CONFIG:
+        return Response({"error": "No config available."}, status=404)
 
-    if not config:
-        return Response({"error": "No config found."}, status=404)
+    # 默认取第一个配置项
+    first_config = list(CURRENT_CONFIG.values())[0]
+    return Response(first_config, status=200)
 
-    return Response(config, status=200)
 
 @api_view(['GET'])
 def get_data_by_session(request):
