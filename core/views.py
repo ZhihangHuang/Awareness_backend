@@ -610,21 +610,44 @@ def user_data_status(request):
 
 CURRENT_CONFIG = {}
 
-@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def save_config(request):
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            CURRENT_CONFIG.update(data)
-            print("✅ 已保存配置:", CURRENT_CONFIG)
-            return JsonResponse({"status": "success"}, status=200)
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
-    return JsonResponse({"error": "Only POST allowed"}, status=405)
+    """
+    保存当前登录账号的配置（email, password, user_id, activity_id, data_type）
+    """
+    account = request.user  # 当前 Account
+    data = request.data
 
+    required_fields = ['user_id', 'activity_id', 'data_type', 'email', 'password']
+    for field in required_fields:
+        if field not in data:
+            return Response({"error": f"Missing field: {field}"}, status=400)
+
+    CURRENT_CONFIG[account.id] = {
+        "user_id": data["user_id"],
+        "activity_id": data["activity_id"],
+        "data_type": data["data_type"],
+        "email": data["email"],
+        "password": data["password"],
+    }
+
+    return Response({"message": "Config saved successfully."}, status=200)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_config(request):
-    return JsonResponse(CURRENT_CONFIG, status=200)
+    """
+    获取当前登录账号的配置
+    """
+    account = request.user
+    config = CURRENT_CONFIG.get(account.id)
 
+    if not config:
+        return Response({"error": "No config found."}, status=404)
+
+    return Response(config, status=200)
 
 @api_view(['GET'])
 def get_data_by_session(request):
