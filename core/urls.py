@@ -40,4 +40,6 @@ urlpatterns = [
     path('delete_user/<int:user_id>/', views.delete_user),
     path('activity_types/', views.get_activity_types),
     path('test/', views.test_endpoint, name='test_endpoint'),
+    path("save-config/", views.save_config),
+    path("get-config/", views.get_config),
 ]

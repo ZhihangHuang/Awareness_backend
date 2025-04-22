@@ -62,7 +62,7 @@ class Devices(models.Model):
     paired_at = models.DateTimeField(blank=True, null=True)
     
     # 新增字段：设备蓝牙MAC地址
-    bluetooth_mac = models.CharField(max_length=20, blank=True, null=True)
+    bluetooth_mac = models.CharField(max_length=20, blank=True, null=True, unique=True)
     # 新增字段：设备状态
     is_active = models.BooleanField(default=True)
     # 新增字段：设备制造商

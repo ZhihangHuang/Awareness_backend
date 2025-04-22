@@ -38,7 +38,9 @@ from .serializers import (
     DeviceSerializer, AnnotationSerializer, 
     UserSettingsSerializer, HealthScoresSerializer, NotificationsSerializer, SyncLogsSerializer
 )
-
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
@@ -126,6 +128,7 @@ def upload_sensor_data(request):
     print("📄 请求头:", request.headers)
     print("📦 请求体:", request.data)
     
+    data = request.data.copy()
     user_id = request.data.get('user')
     
     try:
@@ -136,42 +139,34 @@ def upload_sensor_data(request):
         return Response({"user": ["无效的用户ID"]}, status=400)
     
     # 处理设备关联
-    device_id = request.data.get('device_id')
-    device = None
-    if device_id:
+    device_identifier = data.get('device_identifier')
+    device_instance = None
+    if device_identifier:
         try:
-            device = Devices.objects.get(device_id=device_id)
-            print("✅ 设备存在:", device.id)
+            device_instance = Devices.objects.get(bluetooth_mac=device_identifier)
+            print("✅ 匹配到设备:", device_instance.id)
         except Devices.DoesNotExist:
-            print("❌ 设备不存在:", device_id)
+            print("❌ 没有找到对应的设备:", device_identifier)
             # 如果设备不存在，尝试创建新设备
-            device_type = request.data.get('device_type', 'unknown')
-            device = Devices.objects.create(
+            device_type = data.get('device_type', 'unknown')
+            device_instance = Devices.objects.create(
                 user=user,
-                device_id=device_id,
+                device_id=f"auto_{device_identifier}",
                 device_type=device_type,
+                bluetooth_mac=device_identifier,
                 paired_at=timezone.now()
             )
-            print("✅ 自动创建设备:", device.id)
+            print("✅ 自动创建设备:", device_instance.id)
         
-    serializer = SensorDataSerializer(data=request.data)
+    serializer = SensorDataSerializer(data=data)
     if serializer.is_valid():
-        print("✅ 数据验证成功")
-        try:
-            # 保存数据并关联设备（如果有）
-            sensor_data = serializer.save(user=user)
-            if device:
-                sensor_data.device = device
-                sensor_data.save()
-            print("✅ 数据保存成功")
-            return Response(serializer.data, status=201)
-        except Exception as e:
-            print("❌ 数据保存失败:", str(e))
-            return Response({"error": str(e)}, status=500)
+        sensor_data = serializer.save(user=user, device=device_instance)
+        print("✅ 数据保存成功")
+        return Response(SensorDataSerializer(sensor_data).data, status=201)
     else:
         print("❌ 数据验证失败:", serializer.errors)
         return Response(serializer.errors, status=400)
-
+    
 @api_view(['GET', 'POST'])
 def get_devices(request):
     if request.method == 'GET':
@@ -608,3 +603,20 @@ def upload_bulk_sensor_data(request):
 def user_data_status(request):
     user_ids = SensorData.objects.filter(user__isnull=False).values_list('user_id', flat=True).distinct()
     return Response({'users_with_data': list(user_ids)})
+
+CURRENT_CONFIG = {}
+
+@csrf_exempt
+def save_config(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            CURRENT_CONFIG.update(data)
+            print("✅ 已保存配置:", CURRENT_CONFIG)
+            return JsonResponse({"status": "success"}, status=200)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
+    return JsonResponse({"error": "Only POST allowed"}, status=405)
+
+def get_config(request):
+    return JsonResponse(CURRENT_CONFIG, status=200)
