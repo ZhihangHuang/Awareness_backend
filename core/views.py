@@ -636,18 +636,20 @@ def save_config(request):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])  # ✅ 测试阶段不需要认证
+@permission_classes([AllowAny])
 def get_config(request):
-    """
-    测试版本：从 CURRENT_CONFIG 中取第一个配置（不依赖登录账号）
-    """
-    if not CURRENT_CONFIG:
-        return Response({"error": "No config available."}, status=404)
-
-    # 默认取第一个配置项
-    first_config = list(CURRENT_CONFIG.values())[0]
-    return Response(first_config, status=200)
-
+    """获取指定账号的配置"""
+    account_id = request.query_params.get('account_id')
+    
+    if not account_id or account_id not in CURRENT_CONFIG:
+        # 如果没有指定账号ID或该账号没有配置，尝试获取最新配置
+        if not CURRENT_CONFIG:
+            return Response({"error": "No config available."}, status=404)
+        # 返回最后一个保存的配置
+        latest_config = list(CURRENT_CONFIG.values())[-1]
+        return Response(latest_config, status=200)
+    
+    return Response(CURRENT_CONFIG[account_id], status=200)
 
 @api_view(['GET'])
 def get_data_by_session(request):
