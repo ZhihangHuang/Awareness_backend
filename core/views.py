@@ -49,6 +49,12 @@ from rest_framework.response import Response
 from core.models import SensorData
 from core.serializers import SensorDataSerializer
 from rest_framework.permissions import AllowAny
+import subprocess
+import os
+import signal
+import psutil
+
+
 @csrf_exempt
 @api_view(['POST'])
 def register_account(request):
@@ -666,3 +672,44 @@ def get_public_config(request):
         "email": "your_email@example.com",
         "password": "your_password_here"
     })
+
+CURRENT_RECORD_UPLOAD_PROCESS = None
+
+@api_view(['POST'])
+def start_record_upload(request):
+    global CURRENT_RECORD_UPLOAD_PROCESS
+    
+    # 如果已经有进程在运行，先终止
+    if CURRENT_RECORD_UPLOAD_PROCESS:
+        try:
+            # 终止整个进程组
+            os.killpg(os.getpgid(CURRENT_RECORD_UPLOAD_PROCESS.pid), signal.SIGTERM)
+        except Exception as e:
+            print(f"终止旧进程时出错: {e}")
+    
+    try:
+        # 使用进程组，确保可以终止整个进程树
+        CURRENT_RECORD_UPLOAD_PROCESS = subprocess.Popen(
+            ['python', 'record_upload.py'], 
+            preexec_fn=os.setsid,  # 创建新的进程组
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE
+        )
+        return Response({"message": "Record upload started successfully"}, status=200)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(['POST'])
+def stop_record_upload(request):
+    global CURRENT_RECORD_UPLOAD_PROCESS
+    
+    if CURRENT_RECORD_UPLOAD_PROCESS:
+        try:
+            # 终止整个进程组
+            os.killpg(os.getpgid(CURRENT_RECORD_UPLOAD_PROCESS.pid), signal.SIGTERM)
+            CURRENT_RECORD_UPLOAD_PROCESS = None
+            return Response({"message": "Record upload stopped successfully"}, status=200)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+    
+    return Response({"message": "No record upload process running"}, status=200)

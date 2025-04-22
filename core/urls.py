@@ -44,4 +44,7 @@ urlpatterns = [
     path("get-config/", views.get_config),
     path('sensor_data/by_session/', views.get_data_by_session),
     path('public-config/', views.get_public_config),
+
+    path('start-record-upload/', views.start_record_upload, name='start_record_upload'),
+    path('stop-record-upload/', views.stop_record_upload, name='stop_record_upload'),
 ]
