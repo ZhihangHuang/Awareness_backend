@@ -682,31 +682,39 @@ def start_record_upload(request):
     # 如果已经有进程在运行，先终止
     if CURRENT_RECORD_UPLOAD_PROCESS:
         try:
-            # 终止整个进程组
             os.killpg(os.getpgid(CURRENT_RECORD_UPLOAD_PROCESS.pid), signal.SIGTERM)
         except Exception as e:
             print(f"终止旧进程时出错: {e}")
     
     try:
-        # 使用进程组，确保可以终止整个进程树
+        # 使用完整路径（根据你的实际路径修改）
+        script_path = "D:/awareness/cortex-example/python/record_upload.py"
+        
+        # 确保使用正确的Python解释器路径
+        python_path = "python"  # 或者使用完整路径，如"C:/Python39/python.exe"
+        
+        # 启动进程
         CURRENT_RECORD_UPLOAD_PROCESS = subprocess.Popen(
-            ['python', 'record_upload.py'], 
-            preexec_fn=os.setsid,  # 创建新的进程组
+            [python_path, script_path], 
+            preexec_fn=os.setsid if os.name != 'nt' else None,  # Windows不支持os.setsid
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE
         )
         return Response({"message": "Record upload started successfully"}, status=200)
     except Exception as e:
         return Response({"error": str(e)}, status=500)
-
-@api_view(['POST'])
+api_view(['POST'])
 def stop_record_upload(request):
     global CURRENT_RECORD_UPLOAD_PROCESS
     
     if CURRENT_RECORD_UPLOAD_PROCESS:
         try:
-            # 终止整个进程组
-            os.killpg(os.getpgid(CURRENT_RECORD_UPLOAD_PROCESS.pid), signal.SIGTERM)
+            if os.name == 'nt':  # Windows
+                # Windows上使用taskkill终止进程树
+                subprocess.call(['taskkill', '/F', '/T', '/PID', str(CURRENT_RECORD_UPLOAD_PROCESS.pid)])
+            else:  # Unix/Linux/Mac
+                os.killpg(os.getpgid(CURRENT_RECORD_UPLOAD_PROCESS.pid), signal.SIGTERM)
+            
             CURRENT_RECORD_UPLOAD_PROCESS = None
             return Response({"message": "Record upload stopped successfully"}, status=200)
         except Exception as e:
