@@ -259,8 +259,8 @@ class Train():
 def main():
 
     # Please fill your application clientId and clientSecret before running script
-    your_app_client_id = ''
-    your_app_client_secret = ''
+    your_app_client_id = 'ptXSvmu17TMeS0ATgLkid3ZY0pmTUwPSUNYjso81'
+    your_app_client_secret = 'dgEoN6S0sO5SvoeIkc55df7QqEkN2lRLN8c03KSasusZbtNwgdEDIG5LsvzF7gX6t3Lmw26HUJanhxMhiARPZElZYNBmOwK82tqTmGsDEGHq9yzjZfZCueWyRkQrBt6z'
 
     # Init Train
     t=Train(your_app_client_id, your_app_client_secret)

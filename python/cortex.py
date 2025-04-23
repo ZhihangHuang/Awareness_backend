@@ -4,7 +4,7 @@ import json
 import ssl
 import time
 import sys
-from pydispatch import Dispatcher
+from pydispatch import dispatcher
 import warnings
 import threading
 
@@ -60,8 +60,9 @@ HEADSET_CANNOT_WORK_WITH_BTLE = 112
 HEADSET_CANNOT_CONNECT_DISABLE_MOTION = 113
 HEADSET_SCANNING_FINISHED = 142
 
-class Cortex(Dispatcher):
-
+class Cortex():
+    def emit(self, *args, **kwargs):
+        print(f"[DEBUG] emit called — args: {args}, kwargs: {kwargs}")
     _events_ = ['inform_error','create_session_done', 'query_profile_done', 'load_unload_profile_done', 
                 'save_profile_done', 'get_mc_active_action_done','mc_brainmap_done', 'mc_action_sensitivity_done', 
                 'mc_training_threshold_done', 'create_record_done', 'stop_record_done','warn_cortex_stop_all_sub', 'warn_record_post_processing_done',
@@ -98,22 +99,38 @@ class Cortex(Dispatcher):
 
     def open(self):
         url = "wss://localhost:6868"
-        # websocket.enableTrace(True)
-        self.ws = websocket.WebSocketApp(url, 
-                                        on_message=self.on_message,
-                                        on_open = self.on_open,
-                                        on_error=self.on_error,
-                                        on_close=self.on_close)
+        self.ws_ready = False  # 👈 新增标志位
+
+        self.ws = websocket.WebSocketApp(
+            url,
+            on_message=self.on_message,
+            on_open=self.on_open_wrapper,  # 👈 改成包装器
+            on_error=self.on_error,
+            on_close=self.on_close
+        )
+
         threadName = "WebsockThread:-{:%Y%m%d%H%M%S}".format(datetime.utcnow())
-        
-        # As default, a Emotiv self-signed certificate is required.
-        # If you don't want to use the certificate, please replace by the below line  by sslopt={"cert_reqs": ssl.CERT_NONE}
         sslopt = {'ca_certs': "../certificates/rootCA.pem", "cert_reqs": ssl.CERT_REQUIRED}
 
-        self.websock_thread  = threading.Thread(target=self.ws.run_forever, args=(None, sslopt), name=threadName)
-        self.websock_thread .start()
-        self.websock_thread.join()
+        self.websock_thread = threading.Thread(
+            target=self.ws.run_forever,
+            kwargs={"sslopt": sslopt},
+            name=threadName
+        )
+        self.websock_thread.daemon = True
+        self.websock_thread.start()
 
+        # ⏳ 等待 websocket 真正打开（最多 5 秒）
+        timeout = 5
+        while not self.ws_ready and timeout > 0:
+            time.sleep(0.1)
+            timeout -= 0.1
+        if not self.ws_ready:
+            raise Exception("WebSocket failed to open in time.")
+    def on_open_wrapper(self, *args, **kwargs):
+        print("websocket opened")
+        self.ws_ready = True  # ✅ 设置 websocket 已连接
+        self.do_prepare_steps()  # ✅ 继续原本逻辑（授权等）
     def close(self):
         self.ws.close()
 
@@ -307,13 +324,15 @@ class Cortex(Dispatcher):
             self.emit('inject_marker_done', data=result_dic['marker'])
         elif req_id == INJECT_MARKER_REQUEST_ID:
             self.emit('update_marker_done', data=result_dic['marker'])
+        elif req_id == CONNECT_HEADSET_ID:
+            print(" headset connect 请求返回了，可能连接成功")
+    # 下一轮 query_headset 会确认状态变成 connected
         else:
             print('No handling for response of request ' + str(req_id))
 
-    def handle_error(self, recv_dic):
-        req_id = recv_dic['id']
-        print('handle_error: request Id ' + str(req_id))
-        self.emit('inform_error', error_data=recv_dic['error'])
+    def handle_error(self, msg):
+        print("❌ handle_error:", msg.get('id'))
+        print("📩 错误信息：", msg)
     
     def handle_warning(self, warning_dic):
 
@@ -351,21 +370,70 @@ class Cortex(Dispatcher):
             com_data['power'] = result_dic['com'][1]
             com_data['time'] = result_dic['time']
             self.emit('new_com_data', data=com_data)
-        elif result_dic.get('fac') != None:
-            fe_data = {}
-            fe_data['eyeAct'] = result_dic['fac'][0]    #eye action
-            fe_data['uAct'] = result_dic['fac'][1]      #upper action
-            fe_data['uPow'] = result_dic['fac'][2]      #upper action power
-            fe_data['lAct'] = result_dic['fac'][3]      #lower action
-            fe_data['lPow'] = result_dic['fac'][4]      #lower action power
-            fe_data['time'] = result_dic['time']
-            self.emit('new_fe_data', data=fe_data)
         elif result_dic.get('eeg') != None:
             eeg_data = {}
             eeg_data['eeg'] = result_dic['eeg']
             eeg_data['eeg'].pop() # remove markers
             eeg_data['time'] = result_dic['time']
             self.emit('new_eeg_data', data=eeg_data)
+            
+            # 直接处理EEG数据，不依赖dispatcher
+            try:
+                # 获取EEG值
+                eeg_values = eeg_data['eeg']
+                counter_value = eeg_values[0]  # 数据计数器值
+                t7_value = eeg_values[2]  # T7电极的值
+                
+                # 只处理能被20整除的数据点
+                if counter_value % 20 == 0:
+                    try:
+                        # 导入必要的模块
+                        import requests
+                        from datetime import datetime
+                        
+                        # 尝试导入record_upload模块获取配置
+                        try:
+                            import record_upload
+                            USER_ID = record_upload.USER_ID
+                            ACTIVITY_ID = record_upload.ACTIVITY_ID
+                            DATA_TYPE = record_upload.DATA_TYPE
+                            UPLOAD_URL = record_upload.UPLOAD_URL
+                            headers = record_upload.headers
+                        except ImportError:
+                            # 如果无法导入，使用默认值
+                            USER_ID = 3  # 使用默认值
+                            ACTIVITY_ID = 1  # 使用默认值
+                            DATA_TYPE = "eeg"  # 使用默认值
+                            UPLOAD_URL = "https://awareness-backend-x28a.onrender.com/api/sensor_data/"
+                            headers = {"Content-Type": "application/json"}
+                        
+                        print(f"\n🔢 直接处理 - EEG计数器: {counter_value}，T7值: {t7_value}")
+                        
+                        payload = {
+                            "user": USER_ID,
+                            "activity": ACTIVITY_ID,
+                            "data_type": DATA_TYPE,
+                            "value": t7_value,
+                            "unit": "uV",
+                            "recorded_at": datetime.now().isoformat(),
+                            "session_id": f"session_{datetime.now().strftime('%Y%m%d%H%M')}"
+                        }
+                        
+                        print(f"📤 准备发送数据: {payload}")
+                        
+                        res = requests.post(UPLOAD_URL, json=payload, headers=headers, timeout=5)
+                        print(f"📡 请求状态码: {res.status_code}")
+                        
+                        if res.status_code == 201:
+                            print(f"✅ 上传 EEG 成功: {t7_value}")
+                        else:
+                            print(f"❌ 上传失败 [{res.status_code}]: {res.text}")
+                    except Exception as e:
+                        print(f"❌ 上传数据时出错: {e}")
+                        import traceback
+                        traceback.print_exc()
+            except Exception as e:
+                print(f"❌ 直接处理EEG数据出错: {e}")
         elif result_dic.get('mot') != None:
             mot_data = {}
             mot_data['mot'] = result_dic['mot']
@@ -391,7 +459,7 @@ class Cortex(Dispatcher):
         elif result_dic.get('sys') != None:
             sys_data = result_dic['sys']
             self.emit('new_sys_data', data=sys_data)
-        else :
+        else:
             print(result_dic)
 
     def on_message(self, *args):
