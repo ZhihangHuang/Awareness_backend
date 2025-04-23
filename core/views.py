@@ -53,7 +53,7 @@ import subprocess
 import os
 import signal
 import psutil
-
+from django.views.decorators.csrf import csrf_exempt
 
 @csrf_exempt
 @api_view(['POST'])
@@ -674,7 +674,7 @@ def get_public_config(request):
     })
 
 CURRENT_RECORD_UPLOAD_PROCESS = None
-
+@csrf_exempt
 @api_view(['POST'])
 def start_record_upload(request):
     global CURRENT_RECORD_UPLOAD_PROCESS
@@ -688,7 +688,7 @@ def start_record_upload(request):
     
     try:
         # 使用完整路径（根据你的实际路径修改）
-        script_path = "D:/awareness/cortex-example/python/record_upload.py"
+        script_path = "./cortex-example/python/record_upload.py"
         
         # 确保使用正确的Python解释器路径
         python_path = "python"  # 或者使用完整路径，如"C:/Python39/python.exe"
@@ -703,7 +703,8 @@ def start_record_upload(request):
         return Response({"message": "Record upload started successfully"}, status=200)
     except Exception as e:
         return Response({"error": str(e)}, status=500)
-api_view(['POST'])
+@csrf_exempt
+@api_view(['POST'])
 def stop_record_upload(request):
     global CURRENT_RECORD_UPLOAD_PROCESS
     
